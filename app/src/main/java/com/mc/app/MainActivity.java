@@ -70,6 +70,7 @@ public class MainActivity extends BaseActivity {
                 long now = System.currentTimeMillis();
                 MemoryFile mf;
                 final byte[] bytes = ParcelUtils.parcelableToBytes(modelList);
+                Log.d("qmc2", "" + (bytes.length / (1024*1024)));
                 WriteResult w = null;
                 try {
                     mf = new MemoryFile("test", bytes.length);
@@ -157,7 +158,7 @@ public class MainActivity extends BaseActivity {
                     mPbLayout.setVisibility(View.VISIBLE);
                     break;
                 case R.id.start_remote_activity:
-                    if(MemoryManagerNative.getMemoryFileManager()==null){
+                    if (MemoryManagerNative.getMemoryFileManager() == null) {
                         showShortToast("must connect remote service first");
                         return;
                     }
