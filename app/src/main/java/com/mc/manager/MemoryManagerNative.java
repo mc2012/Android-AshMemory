@@ -66,6 +66,11 @@ public abstract class MemoryManagerNative extends Binder implements IMemoryManag
                 setFile(parcel, name, len);
                 reply.writeNoException();
                 return true;
+            case START_REMOTE_ACTIVITY_TRANSACTION:
+                data.enforceInterface(IMemoryManager.descriptor);
+                startRemoteActivity();
+                reply.writeNoException();
+                return true;
         }
         return super.onTransact(code, data, reply, flags);
     }
@@ -87,6 +92,17 @@ public abstract class MemoryManagerNative extends Binder implements IMemoryManag
             data.writeString(fileName);
             data.writeInt(len);
             mRemote.transact(SET_FILE_TRANSACTION, data, replay, 0);
+            replay.readException();
+            data.recycle();
+            replay.recycle();
+        }
+
+        @Override
+        public void startRemoteActivity() throws RemoteException {
+            Parcel data = Parcel.obtain();
+            Parcel replay = Parcel.obtain();
+            data.writeInterfaceToken(descriptor);
+            mRemote.transact(START_REMOTE_ACTIVITY_TRANSACTION, data, replay, 0);
             replay.readException();
             data.recycle();
             replay.recycle();

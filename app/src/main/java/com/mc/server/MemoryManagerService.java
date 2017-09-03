@@ -1,7 +1,9 @@
 package com.mc.server;
 
+import android.content.Intent;
 import android.os.ParcelFileDescriptor;
 import android.os.RemoteException;
+import android.support.v4.util.ArrayMap;
 import android.util.Log;
 
 import com.mc.manager.MemoryManagerNative;
@@ -13,7 +15,6 @@ import java.util.HashMap;
  */
 
 public class MemoryManagerService extends MemoryManagerNative {
-
     private static class MemoryManagerServiceHolder {
         public static MemoryManagerService service = new MemoryManagerService();
     }
@@ -23,21 +24,25 @@ public class MemoryManagerService extends MemoryManagerNative {
     }
 
     public MemoryFileRecord getParcelFileDescriptor(String fileName) {
-        Log.d("qmc", "getParcelFileDescriptor " + fileName + mFileMap);
         synchronized (mFileMap) {
             return mFileMap.get(fileName);
         }
     }
 
-    private HashMap<String, MemoryFileRecord> mFileMap = new HashMap<>();
+    private final ArrayMap<String, MemoryFileRecord> mFileMap = new ArrayMap<>();
 
     @Override
     public void setFile(ParcelFileDescriptor file, String fileName, int len) throws RemoteException {
-        Log.d("qmc", "setFile " + fileName);
         synchronized (mFileMap) {
             mFileMap.put(fileName, new MemoryFileRecord(file, fileName, len));
         }
-        Log.d("qmc", "mFileMap " + mFileMap);
+    }
+
+    @Override
+    public void startRemoteActivity() throws RemoteException {
+        Intent intent = new Intent(RemoteService.getService(), ServerActivity.class);
+        intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
+        RemoteService.getService().startActivity(intent);
     }
 
     public static class MemoryFileRecord {

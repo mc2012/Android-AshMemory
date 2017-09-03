@@ -1,14 +1,38 @@
 <?xml version="1.0" encoding="utf-8"?>
-<android.support.constraint.ConstraintLayout xmlns:android="http://schemas.android.com/apk/res/android"
+<RelativeLayout xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto"
     xmlns:tools="http://schemas.android.com/tools"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
     tools:context="com.mc.server.ServerActivity">
 
-    <ImageView
-        android:id="@+id/img"
+    <TextView
+        android:id="@+id/read"
         android:layout_width="200dp"
-        android:layout_height="200dp"
-        android:background="@mipmap/ic_launcher" />
-</android.support.constraint.ConstraintLayout>
+        android:layout_height="100dp"
+        android:layout_centerHorizontal="true"
+        android:background="#22cc99"
+        android:gravity="center"
+        android:text="read from ashmem"
+        android:textSize="20sp"
+        android:textStyle="bold" />
+
+    <ListView
+        android:id="@+id/list"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:layout_below="@+id/read" />
+
+    <FrameLayout
+        android:id="@+id/pb_layout"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:visibility="invisible">
+
+        <ProgressBar
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_gravity="center" />
+    </FrameLayout>
+
+</RelativeLayout>

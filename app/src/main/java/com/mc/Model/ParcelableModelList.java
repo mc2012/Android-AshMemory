@@ -12,7 +12,7 @@ import java.util.UUID;
  */
 
 public class ParcelableModelList implements Parcelable {
-    private List<ParcelableModel> mList = new ArrayList<>();
+    public List<ParcelableModel> mList = new ArrayList<>();
 
     @Override
     public String toString() {

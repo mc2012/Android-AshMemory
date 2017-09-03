@@ -5,18 +5,23 @@ import android.app.Service;
 import android.content.ComponentName;
 import android.content.Intent;
 import android.content.ServiceConnection;
+import android.os.AsyncTask;
 import android.os.IBinder;
 import android.os.MemoryFile;
 import android.os.ParcelFileDescriptor;
 import android.os.RemoteException;
+import android.support.annotation.Nullable;
+import android.support.v4.os.AsyncTaskCompat;
 import android.support.v7.app.AppCompatActivity;
 import android.os.Bundle;
 import android.util.Log;
 import android.view.View;
+import android.widget.NumberPicker;
 import android.widget.TextView;
 import android.widget.Toast;
 
 import com.mc.Model.ParcelableModelList;
+import com.mc.base.BaseActivity;
 import com.mc.manager.MemoryManagerNative;
 import com.mc.memory.R;
 import com.mc.server.RemoteService;
@@ -27,19 +32,19 @@ import java.lang.reflect.Method;
 
 import com.mc.manager.IMemoryManager;
 
-public class MainActivity extends AppCompatActivity {
+public class MainActivity extends BaseActivity {
     IMemoryManager mService;
     private TextView mClickBtn;
+    View mPbLayout;
+    View mConnectView;
+    View mStartView;
+    private NumberPicker mNumberPicker;
     ServiceConnection connection = new ServiceConnection() {
         @Override
         public void onServiceConnected(ComponentName name, IBinder service) {
             MemoryManagerNative.connectBinder(service);
-            findViewById(R.id.id).postDelayed(new Runnable() {
-                @Override
-                public void run() {
-                    mClickBtn.performClick();
-                }
-            }, 1000);
+            mPbLayout.setVisibility(View.INVISIBLE);
+            showShortToast("connect to server successfully");
         }
 
         @Override
@@ -47,62 +52,138 @@ public class MainActivity extends AppCompatActivity {
 
         }
     };
-    MemoryFile mf;
+
     @Override
-    protected void onCreate(Bundle savedInstanceState) {
-        super.onCreate(savedInstanceState);
-        setContentView(R.layout.activity_main);
-        mClickBtn = findViewById(this, R.id.id);
-        Intent intent = new Intent(this, RemoteService.class);
-        mClickBtn.setOnClickListener(new View.OnClickListener() {
+    public int getLayoutId() {
+        return R.layout.activity_main;
+    }
+
+    private void write() {
+        AsyncTaskCompat.executeParallel(new AsyncTask<Object, Object, Object>() {
             @Override
-            public void onClick(View v) {
+            protected Object doInBackground(Object... params) {
+                if (params == null || (int) params[0] <= 0) {
+                    return new WriteResult(-1, "请选择写数目");
+                }
+                int num = (int) params[0];
+                ParcelableModelList modelList = ParcelableModelList.newInstance(num);
+                long now = System.currentTimeMillis();
+                MemoryFile mf;
+                final byte[] bytes = ParcelUtils.parcelableToBytes(modelList);
+                WriteResult w = null;
                 try {
-                    /*Bitmap bitmap = BitmapFactory.decodeResource(getResources(), R.mipmap.btn_social);
-                    ByteArrayOutputStream bs = new ByteArrayOutputStream();
-                    bitmap.compress(Bitmap.CompressFormat.PNG, 100, bs);
-                    byte[] bitmaps = bs.toByteArray ();*/
-                    ParcelableModelList modelList = ParcelableModelList.newInstance(20000);
-                    long now = System.currentTimeMillis();
-                    final byte[] bytes = ParcelUtils.parcelableToBytes(modelList);
                     mf = new MemoryFile("test", bytes.length);
                     mf.writeBytes(bytes, 0, 0, bytes.length);
-                    Log.d("qmc2", " write 耗时: " + (System.currentTimeMillis() - now));
-                    Toast.makeText(MainActivity.this," write 耗时: " + (System.currentTimeMillis() - now),Toast.LENGTH_SHORT).show();
+                    publishProgress((System.currentTimeMillis() - now));
                     Method method = MemoryFile.class.getDeclaredMethod("getFileDescriptor");
                     FileDescriptor fd = (FileDescriptor) method.invoke(mf);
                     final ParcelFileDescriptor pfd = ParcelFileDescriptor.dup(fd);
-                    findViewById(R.id.id).postDelayed(new Runnable() {
-                        @Override
-                        public void run() {
-                            try {
-                                MemoryManagerNative.getMemoryFileManager().setFile(pfd, "test", bytes.length);
-                            } catch (RemoteException e) {
-                                e.printStackTrace();
-                            }
-                        }
-                    }, 2000);
-
-
-
-
-                    Log.d("qmc", " client " );
+                    MemoryManagerNative.getMemoryFileManager().setFile(pfd, "test", bytes.length);
+                    w = new WriteResult(0, "write successfully");
+                    mf.close();
                 } catch (Exception e) {
-                    Log.d("qmc", " " + e);
                     e.printStackTrace();
+                    w = new WriteResult(-1, e + "");
+                }
+                return w;
+            }
+
+            @Override
+            protected void onPreExecute() {
+                super.onPreExecute();
+            }
+
+            @Override
+            protected void onPostExecute(Object o) {
+                super.onPostExecute(o);
+                if (o != null) {
+                    if (o instanceof WriteResult) {
+                        WriteResult w = (WriteResult) o;
+                        switch (w.code) {
+                            case 0:
+                                showShortToast("write successfully");
+                                mPbLayout.setVisibility(View.INVISIBLE);
+                                break;
+                            case -1:
+                                showShortToast(w.message);
+                                break;
+                        }
+                    } else {
+                        showShortToast(" write error");
+                    }
+                } else {
+                    showShortToast(" write error");
                 }
             }
-        });
-        bindService(intent, connection, Service.BIND_AUTO_CREATE);
+
+            @Override
+            protected void onProgressUpdate(Object... values) {
+                super.onProgressUpdate(values);
+                showShortToast(" write 耗时: " + values[0]);
+            }
+        }, mNumberPicker.getValue());
     }
 
-    protected static <V, T extends Activity> V findViewById(T t, int id) {
-        return (V) t.findViewById(id);
+    @Override
+    protected void initUi(@Nullable Bundle savedInstanceState) {
+        mClickBtn = findView(this, R.id.write);
+        mNumberPicker = findView(this, R.id.num);
+        mPbLayout = findView(this, R.id.pb_layout);
+        mNumberPicker.setMaxValue(2000000);
+        mNumberPicker.setMinValue(10);
+        mNumberPicker.setValue(2000);
+        mClickBtn.setOnClickListener(mClickListener);
+
+        mConnectView = findView(this, R.id.connect);
+        mStartView = findView(this, R.id.start_remote_activity);
+
+        mConnectView.setOnClickListener(mClickListener);
+        mStartView.setOnClickListener(mClickListener);
+
+
     }
+
+    private View.OnClickListener mClickListener = new View.OnClickListener() {
+        @Override
+        public void onClick(View v) {
+            switch (v.getId()) {
+                case R.id.write:
+                    write();
+                    mPbLayout.setVisibility(View.VISIBLE);
+                    break;
+                case R.id.connect:
+                    Intent intent = new Intent(MainActivity.this, RemoteService.class);
+                    bindService(intent, connection, Service.BIND_AUTO_CREATE);
+                    mPbLayout.setVisibility(View.VISIBLE);
+                    break;
+                case R.id.start_remote_activity:
+                    if(MemoryManagerNative.getMemoryFileManager()==null){
+                        showShortToast("must connect remote service first");
+                        return;
+                    }
+                    try {
+                        MemoryManagerNative.getMemoryFileManager().startRemoteActivity();
+                    } catch (RemoteException e) {
+                        e.printStackTrace();
+                    }
+                    break;
+            }
+        }
+    };
 
     @Override
     protected void onDestroy() {
         super.onDestroy();
         unbindService(connection);
+    }
+
+    private static class WriteResult {
+        int code;
+        String message;
+
+        public WriteResult(int code, String message) {
+            this.code = code;
+            this.message = message;
+        }
     }
 }
